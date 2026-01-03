@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { User } from "@supabase/supabase-js";
-import toast from "react-hot-toast";
+import { useCurrentUser, useSignOut } from "@/hooks";
+import { useUserSettings } from "@/hooks";
+import { showSuccess } from "@/utils";
 import AnimeTracker from "@/components/widgets/AnimeTracker";
 import DailyInspiration from "@/components/widgets/DailyInspiration";
 import SpendingTracker from "@/components/widgets/SpendingTracker";
@@ -13,79 +12,32 @@ import HealthTracker from "@/components/widgets/HealthTracker";
 import MiniGames from "@/components/widgets/MiniGames";
 import { LogOut, Settings, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
-
-interface UserSettings {
-  anime_tracker_enabled: boolean;
-  daily_inspiration_enabled: boolean;
-  spending_tracker_enabled: boolean;
-  todo_list_enabled: boolean;
-  health_tracker_enabled: boolean;
-  mini_games_enabled: boolean;
-}
+import { useEffect } from "react";
 
 export default function Dashboard() {
-  const [user, setUser] = useState<User | null>(null);
-  const [settings, setSettings] = useState<UserSettings | null>(null);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
-
-  const checkUser = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/");
-      return;
-    }
-    setUser(user);
-
-    // Load or create user settings
-    const { data: userSettings, error } = await supabase
-      .from("user_settings")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error loading settings:", error);
-      toast.error("Failed to load settings");
-    } else if (!userSettings) {
-      // Create default settings if they don't exist
-      const { data: newSettings, error: createError } = await supabase
-        .from("user_settings")
-        .insert({
-          user_id: user.id,
-          anime_tracker_enabled: true,
-          daily_inspiration_enabled: true,
-          spending_tracker_enabled: true,
-          todo_list_enabled: true,
-          health_tracker_enabled: true,
-          mini_games_enabled: true,
-          layout: [],
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error("Error creating settings:", createError);
-      } else {
-        setSettings(newSettings);
-      }
-    } else {
-      setSettings(userSettings);
-    }
-    setLoading(false);
-  }, [router]);
+  const { data: user, isLoading: userLoading } = useCurrentUser();
+  const { data: settings, isLoading: settingsLoading } = useUserSettings(
+    user?.id
+  );
+  const signOut = useSignOut();
 
   useEffect(() => {
-    checkUser();
-  }, [checkUser]);
+    if (!userLoading && !user) {
+      router.push("/");
+    }
+  }, [user, userLoading, router]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success("Logged out successfully");
-    router.push("/");
+  const handleLogout = () => {
+    signOut.mutate(undefined, {
+      onSuccess: () => {
+        showSuccess("Logged out successfully");
+        router.push("/");
+      },
+    });
   };
+
+  const loading = userLoading || settingsLoading;
 
   if (loading) {
     return (

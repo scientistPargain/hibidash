@@ -1,13 +1,23 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  useCurrentUser,
+  useUserSettings,
+  useUpdateUserSettings,
+} from "@/hooks";
+import { showSuccess, showError } from "@/utils";
 import { ArrowLeft, Save, Sparkles } from "lucide-react";
-import toast from "react-hot-toast";
 
 export default function Settings() {
-  const [userId, setUserId] = useState<string | null>(null);
+  const router = useRouter();
+  const { data: user, isLoading: userLoading } = useCurrentUser();
+  const { data: userSettings, isLoading: settingsLoading } = useUserSettings(
+    user?.id
+  );
+  const updateSettings = useUpdateUserSettings(user?.id || "");
+
   const [settings, setSettings] = useState({
     anime_tracker_enabled: true,
     daily_inspiration_enabled: true,
@@ -16,63 +26,39 @@ export default function Settings() {
     health_tracker_enabled: true,
     mini_games_enabled: true,
   });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const router = useRouter();
-
-  const loadSettings = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/");
-      return;
-    }
-    setUserId(user.id);
-
-    const { data } = await supabase
-      .from("user_settings")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (data) {
-      setSettings({
-        anime_tracker_enabled: data.anime_tracker_enabled,
-        daily_inspiration_enabled: data.daily_inspiration_enabled,
-        spending_tracker_enabled: data.spending_tracker_enabled,
-        todo_list_enabled: data.todo_list_enabled,
-        health_tracker_enabled: data.health_tracker_enabled,
-        mini_games_enabled: data.mini_games_enabled,
-      });
-    }
-    setLoading(false);
-  }, [router]);
 
   useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
-
-  const saveSettings = async () => {
-    if (!userId) return;
-
-    setSaving(true);
-    const { error } = await supabase
-      .from("user_settings")
-      .update({
-        ...settings,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId);
-
-    if (!error) {
-      toast.success("Settings saved successfully!");
-      router.push("/dashboard");
-    } else {
-      toast.error("Failed to save settings");
+    if (!userLoading && !user) {
+      router.push("/");
     }
-    setSaving(false);
+  }, [user, userLoading, router]);
+
+  useEffect(() => {
+    if (userSettings) {
+      setSettings({
+        anime_tracker_enabled: userSettings.anime_tracker_enabled,
+        daily_inspiration_enabled: userSettings.daily_inspiration_enabled,
+        spending_tracker_enabled: userSettings.spending_tracker_enabled,
+        todo_list_enabled: userSettings.todo_list_enabled,
+        health_tracker_enabled: userSettings.health_tracker_enabled,
+        mini_games_enabled: userSettings.mini_games_enabled,
+      });
+    }
+  }, [userSettings]);
+
+  const saveSettings = () => {
+    updateSettings.mutate(settings, {
+      onSuccess: () => {
+        showSuccess("Settings saved successfully!");
+        router.push("/dashboard");
+      },
+      onError: () => {
+        showError("Failed to save settings");
+      },
+    });
   };
+
+  const loading = userLoading || settingsLoading;
 
   if (loading) {
     return (
@@ -121,7 +107,9 @@ export default function Settings() {
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl border-2 border-orange-100 dark:border-amber-800/30 bg-gradient-to-br from-white to-amber-50/30 dark:from-gray-800/50 dark:to-amber-950/20 p-5 transition-all hover:border-orange-300 dark:hover:border-amber-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:scale-[1.01]">
               <div>
-                <h3 className="font-semibold text-gray-800 dark:text-gray-100">Anime Tracker</h3>
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100">
+                  Anime Tracker
+                </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   Track your anime watching progress
                 </p>
@@ -194,7 +182,9 @@ export default function Settings() {
 
             <div className="flex items-center justify-between rounded-xl border-2 border-orange-100 dark:border-amber-800/30 bg-gradient-to-br from-white to-amber-50/30 dark:from-gray-800/50 dark:to-amber-950/20 p-5 transition-all hover:border-orange-300 dark:hover:border-amber-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:scale-[1.01]">
               <div>
-                <h3 className="font-semibold text-gray-800 dark:text-gray-100">To-Do List</h3>
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100">
+                  To-Do List
+                </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   Manage your tasks and priorities
                 </p>
@@ -217,7 +207,9 @@ export default function Settings() {
 
             <div className="flex items-center justify-between rounded-xl border-2 border-orange-100 dark:border-amber-800/30 bg-gradient-to-br from-white to-amber-50/30 dark:from-gray-800/50 dark:to-amber-950/20 p-5 transition-all hover:border-orange-300 dark:hover:border-amber-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:scale-[1.01]">
               <div>
-                <h3 className="font-semibold text-gray-800 dark:text-gray-100">Health Tracker</h3>
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100">
+                  Health Tracker
+                </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   Log your daily health metrics
                 </p>
@@ -266,11 +258,11 @@ export default function Settings() {
 
           <button
             onClick={saveSettings}
-            disabled={saving}
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 py-3 font-semibold text-white shadow-lg transition hover:shadow-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50"
+            disabled={updateSettings.isPending}
+            className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 py-3 font-semibold text-white shadow-lg transition hover:shadow-xl hover:from-orange-600 hover:via-amber-600 hover:to-orange-700 disabled:opacity-50"
           >
             <Save size={20} />
-            {saving ? "Saving..." : "Save Settings"}
+            {updateSettings.isPending ? "Saving..." : "Save Settings"}
           </button>
         </div>
       </main>

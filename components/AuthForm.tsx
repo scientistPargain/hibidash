@@ -1,71 +1,64 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { useSignIn, useSignUp } from "@/hooks";
+import { showSuccess, showError } from "@/utils";
+import { isValidEmail, isValidPassword } from "@/utils";
 import { Mail, Lock, Sparkles } from "lucide-react";
 
 export default function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(true);
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  const signIn = useSignIn();
+  const signUp = useSignUp();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
-    try {
-      if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        if (data.user) {
-          toast.success("Welcome back!");
-          router.push("/dashboard");
-        }
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        if (data.user) {
-          // Initialize user settings - use upsert to handle conflicts
-          const { error: settingsError } = await supabase
-            .from("user_settings")
-            .upsert(
-              {
-                user_id: data.user.id,
-                anime_tracker_enabled: true,
-                daily_inspiration_enabled: true,
-                spending_tracker_enabled: true,
-                todo_list_enabled: true,
-                health_tracker_enabled: true,
-                mini_games_enabled: true,
-                layout: [],
-              },
-              {
-                onConflict: "user_id",
-              }
-            );
+    if (!isValidEmail(email)) {
+      showError("Please enter a valid email");
+      return;
+    }
 
-          if (settingsError) console.error("Settings error:", settingsError);
-          toast.success("Account created successfully!");
-          router.push("/dashboard");
+    if (!isValidPassword(password)) {
+      showError("Password must be at least 6 characters");
+      return;
+    }
+
+    if (isLogin) {
+      signIn.mutate(
+        { email, password },
+        {
+          onSuccess: () => {
+            showSuccess("Welcome back!");
+            router.push("/dashboard");
+          },
+          onError: (error: Error) => {
+            showError(error.message || "Login failed");
+          },
         }
-      }
-    } catch (err: unknown) {
-      const error = err as { message?: string };
-      toast.error(error.message || "An error occurred");
-    } finally {
-      setLoading(false);
+      );
+    } else {
+      signUp.mutate(
+        { email, password },
+        {
+          onSuccess: () => {
+            showSuccess("Account created successfully!");
+            router.push("/dashboard");
+          },
+          onError: (error: Error) => {
+            showError(error.message || "Signup failed");
+          },
+        }
+      );
     }
   };
+
+  const loading = signIn.isPending || signUp.isPending;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
