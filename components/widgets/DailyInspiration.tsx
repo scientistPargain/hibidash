@@ -26,8 +26,10 @@ const facts = [
 export default function DailyInspiration() {
   const [content, setContent] = useState("");
   const [type, setType] = useState<"quote" | "fact">("quote");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     refresh();
   }, []);
 
@@ -42,10 +44,39 @@ export default function DailyInspiration() {
     }
   };
 
+  if (!mounted) {
+    return (
+      <div className="h-full">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold bg-gradient-to-r from-orange-700 to-amber-700 dark:from-orange-400 dark:to-amber-400 bg-clip-text text-transparent font-bold">
+            Daily Inspiration
+          </h2>
+          <button className="rounded-full bg-yellow-500 p-2 text-white transition hover:bg-yellow-600">
+            <RefreshCw size={20} />
+          </button>
+        </div>
+
+        <div className="relative rounded-lg bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/30 dark:to-orange-950/30 p-6">
+          <Sparkles
+            className="absolute right-4 top-4 text-yellow-500"
+            size={24}
+          />
+          <div className="space-y-2">
+            <span className="inline-block rounded-full bg-white dark:bg-gray-800 px-3 py-1 text-xs font-semibold">
+              Loading...
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-orange-700 to-amber-700 dark:from-orange-400 dark:to-amber-400 bg-clip-text text-transparent font-bold">Daily Inspiration</h2>
+        <h2 className="text-xl font-bold bg-gradient-to-r from-orange-700 to-amber-700 dark:from-orange-400 dark:to-amber-400 bg-clip-text text-transparent font-bold">
+          Daily Inspiration
+        </h2>
         <button
           onClick={refresh}
           className="rounded-full bg-yellow-500 p-2 text-white transition hover:bg-yellow-600"
