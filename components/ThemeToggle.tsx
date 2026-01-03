@@ -22,7 +22,11 @@ export function ThemeToggle() {
 
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      onClick={() => {
+        const newTheme = theme === "dark" ? "light" : "dark";
+        console.log("Switching theme from", theme, "to", newTheme);
+        setTheme(newTheme);
+      }}
       className="group rounded-xl border-2 border-amber-200 dark:border-amber-700/50 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 p-2.5 text-orange-600 dark:text-amber-400 transition-all hover:border-orange-400 dark:hover:border-orange-500 hover:shadow-lg hover:scale-105"
       aria-label="Toggle theme"
     >
